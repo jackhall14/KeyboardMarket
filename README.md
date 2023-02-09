@@ -65,7 +65,7 @@ python KeebMarketAnalysis.py --AllHighEndKeebs --PlotData
 ```
 
 ### Additional Argument Options
-1. `--TraceKeeb` Which as the code searchs through and finds a good match, you can check it, use it for diagnostics plus other benefits you can think of
+1. `--DebugKeeb` Which as the code searchs through and finds a good match, you can check it, use it for diagnostics plus other benefits you can think of
 2. `--DataLimit` Which limits the number of searchs, so set it to 10 for example if you're debugging a problem as the reddit praw has a search data limit request
 
 ## Technical Info of the Code

@@ -363,10 +363,10 @@ def ParsePostBody(Submission, HaveObjects, WantObjects, Location, Keyboard):
 def get_args():
 	args = argparse.ArgumentParser()
 	args.add_argument('--Keeb', type=str, nargs='+', default="TGR Jane V2", help='Name of singular keeb you would like to search for.')
-	args.add_argument('--DebugKeeb', action='store_true', help='When gathering data, pause after each keeb to check the log.')
-	args.add_argument('--DataLimit', type=int, default=40000, help='Restrict the number of listings it will perform per keyboard.')
 	args.add_argument('--SaveData', action='store_true', help='When youre happy to export your dataframe, turn this on')
 	args.add_argument('--PlotData', action='store_true', help='Get a sales version of the final DF, for single keebs only.')
+	args.add_argument('--DebugKeeb', action='store_true', help='When gathering data, pause after each keeb to check the log.')
+	args.add_argument('--DataLimit', type=int, default=40000, help='Restrict the number of listings it will perform per keyboard.')
 	return args.parse_args()
 
 if __name__ == '__main__': main()
