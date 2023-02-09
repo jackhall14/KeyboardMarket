@@ -21,9 +21,9 @@ $ python KeebMarketAnalysis.py
 ```
 
 ## Usage:
-1. `--SaleDF` Argument, this creates a dataframe of sales of (and only of) the item from `--Keeb` as well as plotting them as a time series. This option is good for those that are only interesting in prices of a specific item in the keeb community or those who want a quick time series plot. As an example you might run:
+1. `--PlotData` Argument, this creates a dataframe of sales of (and only of) the item from `--Keeb` as well as plotting them as a time series. This option is good for those that are only interesting in prices of a specific item in the keeb community or those who want a quick time series plot. As an example you might run:
 ```bash
-python KeebMarketAnalysis.py --Keeb Polaris --SaleDF
+python KeebMarketAnalysis.py --Keeb Polaris --PlotData
 ```
 And you'll get a plot which will be automatically saved in `/Yourpath/Plots/POLARIS.csv`.
 ![Image of Polaris](https://github.com/jackhall14/KeyboardMarket/blob/master/POLARIS.png)
@@ -45,9 +45,9 @@ min       45.000000
 64                        https://www.reddit.com/r/mechmarket/comments/fth9hz/usmd_h_ai03_polaris_w_paypal/
 ```
 
-2. `--SaveDF` Argument, this outputs (via a csv file) a dataframe of sale information from mechmarket posts. This is good if you want to perform your own statistical analyses or machine learning. For example I might run:
+2. `--SaveData` Argument, this outputs (via a csv file) a dataframe of sale information from mechmarket posts. This is good if you want to perform your own statistical analyses or machine learning. For example I might run:
 ```bash
-python KeebMarketAnalysis.py --Keeb TGR Jane v2 --SaveDF
+python KeebMarketAnalysis.py --Keeb TGR Jane v2 --SaveData
 ```
 Note, because some posts sell more than one item, we take all sale items regardless as we can filter later if need be so the output dataframe can be like:
 ```bash
@@ -61,7 +61,7 @@ Finished.
 ```
 Alternatively, I have an argument `--AllHighEndKeebs` so if you dont want to build a dataset of just one keyboard (remember, doesn't have to be a mech, it can be anything you can search for in r/mechmarket), you can edit and build this list as you wish. In this case  you would run:
 ```bash
-python KeebMarketAnalysis.py --AllHighEndKeebs --SaleDF
+python KeebMarketAnalysis.py --AllHighEndKeebs --PlotData
 ```
 
 ### Additional Argument Options
