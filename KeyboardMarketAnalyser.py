@@ -3,34 +3,59 @@
 # Made Public: 26th June 2020
 # 
 # To do (in order of priority):
-# 1) Improve plot visualisation, preferablly with fitting
-# 2) Improve price estimation with CurrencyConverter module:
+# 0.5) Finalise date plot for xticks
+# 1) Add more plots - correlation between variables, histograms of price? 
+# 2) Improve text parsing in methods PriceCheck and ParsePostBody
+# 3) Improve price estimation with CurrencyConverter module:
 # https://pypi.org/project/CurrencyConverter/
+# 4) Improve options for fitting
 
 import praw, argparse, re, sys, datetime, os, logging, json
 from parse import *
 import pandas as pd
 import matplotlib
 from matplotlib import pyplot as plt
+from matplotlib import dates as mpl_dates
 import seaborn as sns
 logging.basicConfig(level=logging.INFO)
 
 def main():
     args = get_args()
+    if args.Debug: logging.getLogger().setLevel(logging.DEBUG)
 
     subreddit = GetSubreddit()
-    DoStuff(args, subreddit)
-
+    KeebList = GetListOfKeebs(args)
+    DataDict = GetData(args, subreddit, KeebList)
+    DF = CreateDF(DataDict)
+    for Keeb in KeebList:
+	    if args.PlotData: MakePlots(args, DF, Keeb)
+	    if args.SaveData: SaveData(args, DF, Keeb)
     logging.info("All finished.")
 
-def DoStuff(Args, subreddit):
-	cwd = os.getcwd()
-	cwd = cwd + "/"
+def MakePlots(Args, DataFrame, Keeb):
+	logging.info("Prepping DF for plots ...")
+	DataFrame = DataFrame.loc[DataFrame['Sale Item'] == Keeb.upper()]
+	DataFrame = DataFrame.sort_values(by='Post Date',ascending=True)
+	logging.info(DataFrame)
+	logging.info(DataFrame.describe())
+	pd.set_option('display.max_colwidth', None)
+	logging.info(DataFrame["URL"])
 
-	# Gather a list of keebs you'd like data for
-	List_of_Keebs = []
-	if Args.Keeb: List_of_Keebs.append((" ").join(Args.Keeb))
+	DatePlot(DataFrame, Keeb)
+	# ItemPlotMPL(DataFrame, List_of_Keebs, OutputDir)
 
+def SaveData(Args, DataFrame, Keeb):
+	cwd = os.getcwd() + "/"
+	OutputDir = cwd + "csv_data/"
+	if not os.path.exists(OutputDir): os.makedirs(OutputDir)
+
+	# NewKeebName = ("_").join(Keeb.split(" "))
+	NewKeebName = Keeb
+	OutputDataName = NewKeebName + ".csv"
+	DataFrame.to_csv(OutputDir + OutputDataName, index=False)
+	logging.info("Outputed file to:\n" + OutputDir + OutputDataName)
+
+def GetData(Args, subreddit, List_of_Keebs):
 	List_Of_Output_Dicts = []
 	for Keeb in List_of_Keebs:
 		search_subreddit = subreddit.search("[H] " + Keeb + " [W] PayPal", limit=Args.DataLimit)
@@ -63,42 +88,30 @@ def DoStuff(Args, subreddit):
 								'Sold': value[1]
 							}
 						)
+	return List_Of_Output_Dicts
 
+def CreateDF(Dict):
 	# Create a dataframe from the output dictionary
-	DataFrame = pd.DataFrame(List_Of_Output_Dicts)
+	DataFrame = pd.DataFrame(Dict)
 	DataFrame["Asking Price"] = pd.to_numeric(DataFrame["Asking Price"])
 	# Get names of indexes for which column Age has value 30
 	indexNames = DataFrame[ DataFrame['Asking Price'] == 1 ].index
 	# Delete these row indexes from dataFrame
 	DataFrame.drop(indexNames , inplace=True)
 	DataFrame = DataFrame.dropna()
-	if Args.PlotData:
-		DataFrame = DataFrame.loc[DataFrame['Sale Item'] == List_of_Keebs[0].upper()]
-		DataFrame = DataFrame.sort_values(by='Post Date',ascending=True)
-		logging.info(DataFrame)
-		logging.info(DataFrame.describe())
-		pd.set_option('display.max_colwidth', None)
-		logging.info(DataFrame["URL"])
+	# Output:
+	logging.info(80*"-")
+	logging.info("Dataframe summary:")
+	logging.info(DataFrame)
+	logging.info(DataFrame.describe())
+	return DataFrame
 
-		OutputDir = cwd + "Plots/"
-		if not os.path.exists(OutputDir): os.makedirs(OutputDir)
-
-		# ItemPlotSNS(DataFrame, List_of_Keebs)
-		ItemPlotMPL(DataFrame, List_of_Keebs, OutputDir)
-	else:
-		logging.info(DataFrame)
-		logging.info(DataFrame.describe())
-
-	if Args.SaveData:
-		OutputDir = cwd + "output_data/"
-		if not os.path.exists(OutputDir): os.makedirs(OutputDir)
-
-		if Args.Keeb:
-			NewKeebName = ("_").join(Keeb.split(" "))
-			OutputDataName = NewKeebName + ".csv"
-		DataFrame.to_csv(OutputDir + OutputDataName, index=False)
-		logging.info("Outputed file to:\n" + OutputDir + OutputDataName)
-	logging.info("\nFinished.")
+def GetListOfKeebs(Args):
+	# If you want to hard-code a list of many, do it here:
+	Custom_List_Of_Keebs = []
+	if Custom_List_Of_Keebs: List_of_Keebs = Custom_List_Of_Keebs
+	else: List_of_Keebs = Args.Keeb
+	return List_of_Keebs
 
 def GetSubreddit():
 	F = open("login.json")
@@ -133,79 +146,106 @@ def PrintOutputDict(Dictionary, Submission, Location):
 	logging.info(80*"-")
 	return SubDate
 
-def ItemPlotSNS(DF, List_of_Keebs):
-	# Actual Plot:
+def DatePlot(DF, Keeb):
+	logging.info("Making plot of asking price vs date posted for keeb:\t"+Keeb)
+
+	# Begin Plot:
 	x_var_name = "Post Date"
 	y_var_name = "Asking Price"
 	x_var = DF[x_var_name]
 	y_var = DF[y_var_name]
 
 	# Axis and Title labels:
-	KeebName = List_of_Keebs[0].upper()
-	figureTitle = KeebName
+	# KeebName = Keeb.upper()
+	# figureTitle = KeebName
+	figureTitle = Keeb
 	figurexlabel = x_var_name
 	figureylabel = y_var_name + " (\$)"
 	Prop_array = [figureTitle, figurexlabel, figureylabel]
 
+	# Plot styles
 	plt.rcParams["figure.figsize"] = (12,6)
+	plt.style.use("ggplot")
 
 	# Code to plot:
-	g = sns.stripplot(x=x_var,y=y_var,data=DF)
-	g.figure.suptitle(Prop_array[0],fontsize=16)
+	# g = sns.scatterplot(data=DF, x=x_var, y=y_var,hue="Sold")
+	# g = sns.relplot(data=DF, x=x_var, y=y_var,hue="Sold")
+	g = sns.stripplot(x=x_var,y=y_var,data=DF,hue="Sold", jitter=False)
 	
+	g.figure.suptitle("Sales of "+Prop_array[0],fontsize=16)
 	g.figure.set_size_inches(12,6)
 	plt.subplots_adjust(bottom=0.26)
 
+	# Axes
+	plt.xlabel(Prop_array[1],fontsize=14)
+	plt.ylabel(Prop_array[2],fontsize=14)
+	ax = plt.gca()
+	ax.set_ylim([0, y_var.max() * 1.05])
+	plt.gcf().autofmt_xdate()
 	g.set_xticklabels(g.get_xticklabels(), rotation=90)
-	plt.xlabel(Prop_array[1],fontsize=14)
-	plt.ylabel(Prop_array[2],fontsize=14)
-
-	# Final matter:
-	plt.show(g)
-	logging.info(plt.figure())
-	logging.info(plt.axes())
-
-	OutputDir = cwd + "Plots/"
-	if not os.path.exists(OutputDir): os.makedirs(OutputDir)
-
-	NewKeebName = ("_").join(KeebName.split(" "))
-	OutputPlotName = NewKeebName + ".png"
-	g.figure.savefig(OutputDir+OutputPlotName)
-	logging.info("Saved to:\t" +OutputDir+OutputPlotName)
-
-def ItemPlotMPL(DF, List_of_Keebs, OutputDir):
-	# Actual Plot:
-	x_var_name = "Post Date"
-	y_var_name = "Asking Price"
-	x_var = DF[x_var_name]
-	y_var = DF[y_var_name]
-
-	# Axis and Title labels:
-	KeebName = List_of_Keebs[0].upper()
-	figureTitle = KeebName
-	figurexlabel = x_var_name
-	figureylabel = y_var_name + " (\$)"
-	Prop_array = [figureTitle, figurexlabel, figureylabel]
-
-	plt.rcParams["figure.figsize"] = (12,6)
-
-	# Code to plot:
-	plt.scatter(x_var,y_var)
-
-	plt.subplots_adjust(bottom=0.26)
-
-	plt.xlabel(Prop_array[1],fontsize=14)
-	plt.ylabel(Prop_array[2],fontsize=14)
+	# date_format = mpl_dates.DateFormatter('%b, %d %Y')
+	# ax.xaxis.set_major_formatter(date_format)
 
 	# Final matter:
 	plt.show()
 	logging.info(plt.figure())
 	logging.info(plt.axes())
 
-	NewKeebName = ("_").join(KeebName.split(" "))
-	OutputPlotName = NewKeebName + ".png"
-	# g.figure.savefig(OutputDir+OutputPlotName)
+	NewKeebName = Keeb
+	# NewKeebName = ("_").join(KeebName.split(" "))
+	cwd = os.getcwd() + "/"
+	OutputDir = cwd + "Plots/"+NewKeebName+"/"
+	if not os.path.exists(OutputDir): os.makedirs(OutputDir)
+	OutputPlotName = NewKeebName + "_sales_timeseries" + ".png"
+	g.figure.savefig(OutputDir+OutputPlotName)
 	logging.info("Saved to:\t" +OutputDir+OutputPlotName)
+
+# def ItemPlotMPL(DF, List_of_Keebs, OutputDir):
+# 	# Actual Plot:
+# 	x_var_name = "Post Date"
+# 	y_var_name = "Asking Price"
+# 	x_var = DF[x_var_name]
+# 	y_var = DF[y_var_name]
+
+# 	# Axis and Title labels:
+# 	KeebName = List_of_Keebs[0].upper()
+# 	figureTitle = KeebName
+# 	figurexlabel = x_var_name
+# 	figureylabel = y_var_name + " (\$)"
+# 	Prop_array = [figureTitle, figurexlabel, figureylabel]
+
+# 	# Plot settings
+# 	plt.rcParams["figure.figsize"] = (12,6)
+# 	plt.style.use("ggplot")
+
+# 	# Code to plot:
+# 	colours = y_var * (100. / y_var.max())
+# 	plt.scatter(x_var,y_var,c=colours,cmap="RdYlBu",alpha=0.9)
+
+# 	plt.subplots_adjust(bottom=0.26)
+
+# 	# Axes
+# 	plt.xlabel(Prop_array[1],fontsize=14)
+# 	plt.ylabel(Prop_array[2],fontsize=14)
+# 	ax = plt.gca()
+# 	ax.set_ylim([0, y_var.max() * 1.05])
+# 	plt.gcf().autofmt_xdate()
+# 	date_format = mpl_dates.DateFormatter('%b, %d %Y')
+# 	ax.xaxis.set_major_formatter(date_format)
+
+# 	# Other
+# 	plt.title("Sales of "+Prop_array[0])
+
+# 	# Final matter:
+# 	plt.show()
+# 	logging.info(plt.figure())
+# 	logging.info(plt.axes())
+
+# 	# Output
+# 	NewKeebName = ("_").join(KeebName.split(" "))
+# 	OutputPlotName = NewKeebName + ".png"
+# 	# g.figure.savefig(OutputDir+OutputPlotName)
+# 	logging.info("Saved to:\t" +OutputDir+OutputPlotName)
 
 
 def CheckGoodSubmission(Submission, Keyboard):
@@ -362,11 +402,12 @@ def ParsePostBody(Submission, HaveObjects, WantObjects, Location, Keyboard):
 
 def get_args():
 	args = argparse.ArgumentParser()
-	args.add_argument('--Keeb', type=str, nargs='+', default="TGR Jane V2", help='Name of singular keeb you would like to search for.')
+	args.add_argument('--Keeb', type=str, nargs='+', default=["polaris"], help='Name of keebs you would like to search for - seperate by space e.g: --Keeb polaris aella.')
 	args.add_argument('--SaveData', action='store_true', help='When youre happy to export your dataframe, turn this on')
 	args.add_argument('--PlotData', action='store_true', help='Get a sales version of the final DF, for single keebs only.')
 	args.add_argument('--DebugKeeb', action='store_true', help='When gathering data, pause after each keeb to check the log.')
 	args.add_argument('--DataLimit', type=int, default=40000, help='Restrict the number of listings it will perform per keyboard.')
+	args.add_argument('--Debug', action='store_true', help="Changes the log level to debug")
 	return args.parse_args()
 
 if __name__ == '__main__': main()

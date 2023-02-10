@@ -16,16 +16,17 @@ To run this project:
 $ cd <Some directory you'd like to work from>
 $ git clone https://github.com/jackhall14/KeyboardMarket.git
 $ You'll need loads of dependencies so get downloading via pip or use a virtual environment like anaconda and get downloading using pip
+$ I have already put some of them in requirements.sh
 $ L250ish, You need to put in some details for the reddit praw api. Best reference for this, is this youtube video: https://www.youtube.com/watch?v=NRgfgtzIhBQ
-$ python KeebMarketAnalysis.py
+$ python KeyboardMarketAnalyser.py
 ```
 
 ## Usage:
 1. `--PlotData` Argument, this creates a dataframe of sales of (and only of) the item from `--Keeb` as well as plotting them as a time series. This option is good for those that are only interesting in prices of a specific item in the keeb community or those who want a quick time series plot. As an example you might run:
 ```bash
-python KeebMarketAnalysis.py --Keeb Polaris --PlotData
+python KeyboardMarketAnalyser.py --Keeb Polaris --PlotData
 ```
-And you'll get a plot which will be automatically saved in `/Yourpath/Plots/POLARIS.csv`.
+And you'll get a plot which will be automatically saved in `/Yourpath/Plots/POLARIS/POLARIS.png`.
 ![Image of Polaris](https://github.com/jackhall14/KeyboardMarket/blob/master/POLARIS.png)
 
 As well as a dataframe:
@@ -47,7 +48,7 @@ min       45.000000
 
 2. `--SaveData` Argument, this outputs (via a csv file) a dataframe of sale information from mechmarket posts. This is good if you want to perform your own statistical analyses or machine learning. For example I might run:
 ```bash
-python KeebMarketAnalysis.py --Keeb TGR Jane v2 --SaveData
+python KeyboardMarketAnalyser.py --Keeb TGR Jane v2 --SaveData
 ```
 Note, because some posts sell more than one item, we take all sale items regardless as we can filter later if need be so the output dataframe can be like:
 ```bash
@@ -56,17 +57,14 @@ Note, because some posts sell more than one item, we take all sale items regardl
 1          US-CA  2020-06-17  t3_hadwwn  https://www.reddit.com/r/mechmarket/comments/h...              GMK NAUTILUS         350.0  False
 ...
 Outputed file to:
-/Yourpath/output_data/TGR_Jane_v2.csv
+/Yourpath/csv_data/TGR_Jane_v2.csv
 Finished.
-```
-Alternatively, I have an argument `--AllHighEndKeebs` so if you dont want to build a dataset of just one keyboard (remember, doesn't have to be a mech, it can be anything you can search for in r/mechmarket), you can edit and build this list as you wish. In this case  you would run:
-```bash
-python KeebMarketAnalysis.py --AllHighEndKeebs --PlotData
 ```
 
 ### Additional Argument Options
 1. `--DebugKeeb` Which as the code searchs through and finds a good match, you can check it, use it for diagnostics plus other benefits you can think of
 2. `--DataLimit` Which limits the number of searchs, so set it to 10 for example if you're debugging a problem as the reddit praw has a search data limit request
+2. `--Debug` Changes the logging output from info to debug for more information
 
 ## Technical Info of the Code
 
