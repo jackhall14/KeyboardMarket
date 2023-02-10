@@ -3,12 +3,10 @@
 # Made Public: 26th June 2020
 # 
 # To do (in order of priority):
-# 0.5) Finalise date plot for xticks
-# 1) Add more plots - correlation between variables, histograms of price? 
-# 2) Improve text parsing in methods PriceCheck and ParsePostBody
-# 3) Improve price estimation with CurrencyConverter module:
+# 1) Improve text parsing in methods PriceCheck and ParsePostBody
+# 2) Improve price estimation with CurrencyConverter module:
 # https://pypi.org/project/CurrencyConverter/
-# 4) Improve options for fitting
+# 3) Improve options for fitting - extract information from asking price histogram
 
 import praw, argparse, re, sys, datetime, os, logging, json
 from parse import *
@@ -33,16 +31,137 @@ def main():
     logging.info("All finished.")
 
 def MakePlots(Args, DataFrame, Keeb):
-	logging.info("Prepping DF for plots ...")
+	logging.info(80*"-")
+	logging.info("Time for plots ...")
+	# Select only one keeb from the big DF
 	DataFrame = DataFrame.loc[DataFrame['Sale Item'] == Keeb.upper()]
-	DataFrame = DataFrame.sort_values(by='Post Date',ascending=True)
-	logging.info(DataFrame)
-	logging.info(DataFrame.describe())
+	logging.debug(DataFrame.head())
+	logging.debug(DataFrame.describe())
+	# So you can copy specific URLs:
+	logging.info("URLs in the plot ...")
 	pd.set_option('display.max_colwidth', None)
 	logging.info(DataFrame["URL"])
 
-	DatePlot(DataFrame, Keeb)
+	# Create output dir
+	cwd = os.getcwd() + "/"
+	OutputDir = cwd + "Plots/"+Keeb+"/"
+	if not os.path.exists(OutputDir): os.makedirs(OutputDir)
+
+	SoldHist(DataFrame, Keeb, OutputDir)
+	PostLocationHist(DataFrame, Keeb, OutputDir)
+	AskingPriceHist(DataFrame, Keeb, OutputDir)
+	CorrelationPlot(DataFrame, Keeb, OutputDir)
+	DatePlot(DataFrame, Keeb, OutputDir)
 	# ItemPlotMPL(DataFrame, List_of_Keebs, OutputDir)
+
+def SoldHist(DF, Keeb, OutputDir):
+	# Prep DF for plot:
+	LocationDensity = DF['Sold'].value_counts()  
+	LocationDensityDF = LocationDensity.reset_index()
+	LocationDensityDF.columns = ['Sold', 'frequency']
+
+	logging.info("Producing histogram of sold ... ")
+	g = sns.barplot(data=LocationDensityDF, x='Sold', y='frequency', palette="viridis")
+	plt.show()
+
+	OutputPlotName = Keeb + "_sold_dist" + ".png"
+	g.figure.savefig(OutputDir+OutputPlotName)
+	logging.info("Saved to:\t" +OutputDir+OutputPlotName)
+
+def PostLocationHist(DF, Keeb, OutputDir):
+	# Prep DF for plot:
+	LocationDensity = DF['Post Location'].value_counts()  
+	LocationDensityDF = LocationDensity.reset_index()
+	LocationDensityDF.columns = ['Post Location', 'frequency']
+
+	logging.info("Producing histogram of post locations ... ")
+	g = sns.barplot(data=LocationDensityDF, x='Post Location', y='frequency', palette="viridis")
+
+	# Axis again
+	g.set_xticklabels(g.get_xticklabels(), rotation=90, size=5)
+
+	plt.show()
+
+	OutputPlotName = Keeb + "_post_location_dist" + ".png"
+	g.figure.savefig(OutputDir+OutputPlotName)
+	logging.info("Saved to:\t" +OutputDir+OutputPlotName)
+
+def AskingPriceHist(DF, Keeb, OutputDir):
+	logging.info("Producing histogram of asking price ... ")
+	
+	# Plotting
+	ax = sns.histplot(data=DF, x="Asking Price", hue="Sold", kde=True)
+	sns.kdeplot(data=DF, x="Asking Price", color='crimson', ax=ax)
+
+	# x axis scale
+	ax.set_xlim([0, DF["Asking Price"].max() * 1.05])
+	plt.xlabel("Asking price (\$)",fontsize=14)
+
+	plt.show()
+
+	OutputPlotName = Keeb + "_asking_price_dist" + ".png"
+	ax.figure.savefig(OutputDir+OutputPlotName)
+	logging.info("Saved to:\t" +OutputDir+OutputPlotName)
+
+def DatePlot(DF, Keeb, OutputDir):
+	logging.info("Making plot of asking price vs date posted for keeb:\t"+Keeb)
+
+	# Begin Plot:
+	x_var_name = "Post Date"
+	y_var_name = "Asking Price"
+	x_var = DF[x_var_name]
+	y_var = DF[y_var_name]
+
+	# Axis and Title labels:
+	# KeebName = Keeb.upper()
+	# figureTitle = KeebName
+	figureTitle = Keeb
+	figurexlabel = x_var_name
+	figureylabel = y_var_name + " (\$)"
+	Prop_array = [figureTitle, figurexlabel, figureylabel]
+
+	# Plot styles
+	plt.rcParams["figure.figsize"] = (12,6)
+	plt.style.use("ggplot")
+
+	# Code to plot:
+	# g = sns.scatterplot(data=DF, x=x_var, y=y_var,hue="Sold")
+	# g = sns.relplot(data=DF, x=x_var, y=y_var,hue="Sold")
+	g = sns.stripplot(x=x_var,y=y_var,data=DF,hue="Sold", jitter=False)
+	
+	g.figure.suptitle("Sales of "+Prop_array[0],fontsize=16)
+	g.figure.set_size_inches(12,6)
+	plt.subplots_adjust(bottom=0.26)
+
+	# Axes labels
+	plt.xlabel(Prop_array[1],fontsize=14)
+	plt.ylabel(Prop_array[2],fontsize=14)
+	# Y axis scale
+	ax = plt.gca()
+	ax.set_ylim([0, y_var.max() * 1.05])
+	# X Axis ticks
+	# plt.gcf().autofmt_xdate()
+	g.set_xticklabels(g.get_xticklabels(), rotation=90, size=5)
+	# # date_format = mpl_dates.DateFormatter('%b, %d %Y')
+	# # ax.xaxis.set_major_formatter(date_format)
+
+	# Final matter:
+	plt.show()
+	logging.info(plt.figure())
+	logging.info(plt.axes())
+
+	OutputPlotName = Keeb + "_sales_timeseries" + ".png"
+	g.figure.savefig(OutputDir+OutputPlotName)
+	logging.info("Saved to:\t" +OutputDir+OutputPlotName)
+
+def CorrelationPlot(DF, Keeb, OutputDir):
+	logging.info("Producing correlation matrix plot ... ")
+	g = sns.heatmap(DF.corr(numeric_only = True))
+	plt.show()
+
+	OutputPlotName = Keeb + "_correlation_matrix" + ".png"
+	g.figure.savefig(OutputDir+OutputPlotName)
+	logging.info("Saved to:\t" +OutputDir+OutputPlotName)
 
 def SaveData(Args, DataFrame, Keeb):
 	cwd = os.getcwd() + "/"
@@ -53,7 +172,7 @@ def SaveData(Args, DataFrame, Keeb):
 	NewKeebName = Keeb
 	OutputDataName = NewKeebName + ".csv"
 	DataFrame.to_csv(OutputDir + OutputDataName, index=False)
-	logging.info("Outputed file to:\n" + OutputDir + OutputDataName)
+	logging.info("Outputed file to:\t" + OutputDir + OutputDataName)
 
 def GetData(Args, subreddit, List_of_Keebs):
 	List_Of_Output_Dicts = []
@@ -93,17 +212,38 @@ def GetData(Args, subreddit, List_of_Keebs):
 def CreateDF(Dict):
 	# Create a dataframe from the output dictionary
 	DataFrame = pd.DataFrame(Dict)
-	DataFrame["Asking Price"] = pd.to_numeric(DataFrame["Asking Price"])
+	DataFrame = DataFrame.sort_values(by='Post Date',ascending=True)
+	DataFrame['Post Date'] = pd.to_datetime(DataFrame['Post Date'], format="%Y/%m/%d")
+	DataFrame = DataFrame.convert_dtypes()
+	DataFrame['Sold'] = DataFrame['Sold'].astype('bool')
+	DataFrame['Asking Price'] = DataFrame['Asking Price'].astype('float64')
 	# Get names of indexes for which column Age has value 30
 	indexNames = DataFrame[ DataFrame['Asking Price'] == 1 ].index
 	# Delete these row indexes from dataFrame
 	DataFrame.drop(indexNames , inplace=True)
-	DataFrame = DataFrame.dropna()
+	# DataFrame = DataFrame.dropna()
+
 	# Output:
 	logging.info(80*"-")
-	logging.info("Dataframe summary:")
-	logging.info(DataFrame)
+	logging.info("\t\t\tDATAFRAME SUMMARY ")
+	logging.info("Technical info of the dataframe ...")
+	logging.info(DataFrame.info())
+	logging.info("First 5 entries ...")
+	logging.info(DataFrame.head())
+	logging.info("The number of posts found is:\t"+str(len(DataFrame.index)))
+	logging.info("Correlation matrix for the data ...")
+	logging.info(DataFrame.corr(numeric_only = True))
+	logging.info("Stats for asking prices ...")
 	logging.info(DataFrame.describe())
+	logging.info("How much data is in each column ...")
+	logging.info(DataFrame.count(0))
+	logging.info("How many are sold ...")
+	logging.info(DataFrame['Sold'].value_counts(sort = True, ascending  = True))
+	logging.info("How many are sold as a ratio ...")
+	logging.info(DataFrame['Sold'].value_counts(sort = True, ascending  = True, normalize=True))
+	logging.info("Location density of the posts ...")
+	LocationDensity = DataFrame['Post Location'].value_counts(sort = True, ascending  = False)
+	logging.info(LocationDensity)
 	return DataFrame
 
 def GetListOfKeebs(Args):
@@ -145,60 +285,6 @@ def PrintOutputDict(Dictionary, Submission, Location):
 		logging.info("Sold:\t\t\t" + str(value[1]))
 	logging.info(80*"-")
 	return SubDate
-
-def DatePlot(DF, Keeb):
-	logging.info("Making plot of asking price vs date posted for keeb:\t"+Keeb)
-
-	# Begin Plot:
-	x_var_name = "Post Date"
-	y_var_name = "Asking Price"
-	x_var = DF[x_var_name]
-	y_var = DF[y_var_name]
-
-	# Axis and Title labels:
-	# KeebName = Keeb.upper()
-	# figureTitle = KeebName
-	figureTitle = Keeb
-	figurexlabel = x_var_name
-	figureylabel = y_var_name + " (\$)"
-	Prop_array = [figureTitle, figurexlabel, figureylabel]
-
-	# Plot styles
-	plt.rcParams["figure.figsize"] = (12,6)
-	plt.style.use("ggplot")
-
-	# Code to plot:
-	# g = sns.scatterplot(data=DF, x=x_var, y=y_var,hue="Sold")
-	# g = sns.relplot(data=DF, x=x_var, y=y_var,hue="Sold")
-	g = sns.stripplot(x=x_var,y=y_var,data=DF,hue="Sold", jitter=False)
-	
-	g.figure.suptitle("Sales of "+Prop_array[0],fontsize=16)
-	g.figure.set_size_inches(12,6)
-	plt.subplots_adjust(bottom=0.26)
-
-	# Axes
-	plt.xlabel(Prop_array[1],fontsize=14)
-	plt.ylabel(Prop_array[2],fontsize=14)
-	ax = plt.gca()
-	ax.set_ylim([0, y_var.max() * 1.05])
-	plt.gcf().autofmt_xdate()
-	g.set_xticklabels(g.get_xticklabels(), rotation=90)
-	# date_format = mpl_dates.DateFormatter('%b, %d %Y')
-	# ax.xaxis.set_major_formatter(date_format)
-
-	# Final matter:
-	plt.show()
-	logging.info(plt.figure())
-	logging.info(plt.axes())
-
-	NewKeebName = Keeb
-	# NewKeebName = ("_").join(KeebName.split(" "))
-	cwd = os.getcwd() + "/"
-	OutputDir = cwd + "Plots/"+NewKeebName+"/"
-	if not os.path.exists(OutputDir): os.makedirs(OutputDir)
-	OutputPlotName = NewKeebName + "_sales_timeseries" + ".png"
-	g.figure.savefig(OutputDir+OutputPlotName)
-	logging.info("Saved to:\t" +OutputDir+OutputPlotName)
 
 # def ItemPlotMPL(DF, List_of_Keebs, OutputDir):
 # 	# Actual Plot:

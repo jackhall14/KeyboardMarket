@@ -26,25 +26,71 @@ $ python KeyboardMarketAnalyser.py
 ```bash
 python KeyboardMarketAnalyser.py --Keeb Polaris --PlotData
 ```
-And you'll get a plot which will be automatically saved in `/Yourpath/Plots/POLARIS/POLARIS.png`.
-![Image of Polaris](https://github.com/jackhall14/KeyboardMarket/blob/master/POLARIS.png)
+And you'll get several plots which will be automatically saved in `/Yourpath/Plots/POLARIS/*.png`. The first plot you will get is a visualisation of the correlation matrix:
 
-As well as a dataframe:
+![Image of correlation matrix](https://github.com/jackhall14/KeyboardMarket/blob/master/Plots/polaris/Polaris_correlation_matrix.png)
+
+Which can also be found presented in the terminal:
 ```bash
-   Post Location   Post Date       User                                                URL Sale Item  Asking Price   Sold
-72         CA-ON  2020-03-18  t3_fk7pkv  https://www.reddit.com/r/mechmarket/comments/f...   POLARIS         450.0   True
-64         US-MD  2020-04-02  t3_fth9hz  https://www.reddit.com/r/mechmarket/comments/f...   POLARIS         325.0   True
-...
-<Price info:>
-       Asking Price
-count     24.000000
-mean     420.000000
-std      275.984404
-min       45.000000
-<Direct urls to go a look at the item:>
-72     https://www.reddit.com/r/mechmarket/comments/fk7pkv/caon_h_polaris_60_kit_and_tofu_60_case_w_paypal/
-64                        https://www.reddit.com/r/mechmarket/comments/fth9hz/usmd_h_ai03_polaris_w_paypal/
+INFO:root:Correlation matrix for the data ...
+INFO:root:              Asking Price      Sold
+Asking Price      1.000000  0.098962
+Sold              0.098962  1.000000
 ```
+
+The next three plots are essentially histograms of the main three variables:
+
+![Image of sold hist](https://github.com/jackhall14/KeyboardMarket/blob/master/Plots/polaris/Polaris_sold_dist.png)
+![Image of asking price hist](https://github.com/jackhall14/KeyboardMarket/blob/master/Plots/polaris/Polaris_asking_price_dist.png)
+![Image of post location hist](https://github.com/jackhall14/KeyboardMarket/blob/master/Plots/polaris/Polaris_post_location_dist.png)
+
+The final plot created is a time series distribution of the asking prices:
+
+![Image of Polaris](https://github.com/jackhall14/KeyboardMarket/blob/master/Plots/polaris/polaris_sales_timeseries.png)
+
+All the information plotted and more can be found directly printed in the terminal:
+```bash
+INFO:root:First 5 entries ...
+INFO:root:   Post Location  Post Date       User  ... Sale Item Asking Price  Sold
+8          US-TX 2020-04-15  t3_g210i0  ...   POLARIS        340.0  True
+...
+
+[5 rows x 7 columns]
+INFO:root:The number of posts found is:	377
+INFO:root:Correlation matrix for the data ...
+INFO:root:              Asking Price      Sold
+Asking Price      1.000000  0.098962
+Sold              0.098962  1.000000
+INFO:root:Stats for asking prices ...
+INFO:root:       Asking Price
+count    375.000000
+mean     285.120000
+std      229.103937
+min        8.000000
+25%       80.000000
+50%      225.000000
+75%      477.500000
+max     1250.000000
+INFO:root:How much data is in each column ...
+INFO:root:Post Location    377
+Post Date        377
+...
+Sold             377
+dtype: int64
+INFO:root:How many are sold ...
+INFO:root:True     139
+False    238
+Name: Sold, dtype: int64
+INFO:root:How many are sold as a ratio ...
+INFO:root:True     0.3687
+False    0.6313
+Name: Sold, dtype: float64
+INFO:root:Location density of the posts ...
+INFO:root:US-CA    80
+US-NY    54
+...
+```
+
 
 2. `--SaveData` Argument, this outputs (via a csv file) a dataframe of sale information from mechmarket posts. This is good if you want to perform your own statistical analyses or machine learning. For example I might run:
 ```bash
