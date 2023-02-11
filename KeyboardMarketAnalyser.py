@@ -3,10 +3,7 @@
 # Made Public: 26th June 2020
 # 
 # To do (in order of priority):
-# 1) Improve text parsing in methods PriceCheck and ParsePostBody
-# 2) Improve price estimation with CurrencyConverter module:
-# https://pypi.org/project/CurrencyConverter/
-# 3) Improve options for fitting - extract information from asking price histogram
+# 1) Improve options for fitting - extract information from asking price histogram
 
 import praw, argparse, re, sys, datetime, os, logging, json
 from parse import *
@@ -14,6 +11,7 @@ import pandas as pd
 import matplotlib
 from matplotlib import pyplot as plt
 from matplotlib import dates as mpl_dates
+from currency_converter import CurrencyConverter
 import seaborn as sns
 logging.basicConfig(level=logging.INFO)
 
@@ -387,103 +385,90 @@ def ParseTitle(Submission):
 		HaveObjects = HaveObjects.replace("+","")
 	return Location, HaveObjects, WantObjects
 
+def CheckIfSold(Submission, PostBody):
+	if Submission.link_flair_text:
+		# If it has a post flair, it might already say its sold
+		if "Sold" in Submission.link_flair_text:
+			logging.debug("Submission was sold, assuming it was asking price")
+			return True
+	# Search for Sold in body
+	logging.debug("Flair has not been updated, checking in the body")
+	if search("**SOLD**",PostBody) is not None: return True
+	elif search("SOLD ",PostBody) is not None: return True
+	elif search("SOLD",PostBody) is not None:
+		if search("SOLDER",PostBody) is not None: return False
+		else: return True
+	else: return False
+
+def CurrencyConversion(Submission, Match, Currency):
+	c = CurrencyConverter(fallback_on_missing_rate=True)
+
+	Price = Match.group(1)
+	AskingPrice = re.sub(Currency, '', Price)
+	AskingPrice = float(AskingPrice)
+	if Currency == "\€": AskingPrice = c.convert(AskingPrice, 'EUR', 'USD',date=GetDate(Submission))
+	elif Currency == "\£": AskingPrice = c.convert(AskingPrice, 'GBP', 'USD',date=GetDate(Submission))
+	return AskingPrice
+
 def PriceCheck(Text, Currency, Keyboard = "None", SoldCheck = False):
 	if Keyboard == "None": SearchStr = '('+Currency+'(\d+)|(\d+)'+Currency+')'
-	elif Keyboard != "None" and SoldCheck == False: SearchStr = Keyboard+'.*'+Currency+'(\d{1,9})'
+	# elif Keyboard != "None" and SoldCheck == False: SearchStr = Keyboard+'.*'+Currency+'(\d{1,9})'
+	elif Keyboard != "None" and SoldCheck == False: SearchStr = Keyboard+'.*'+'('+Currency+'(\d+)|(\d+)'+Currency+')'
 	else: SearchStr = Keyboard+'.*'+Currency+'(\d{1,9}).*SOLD'
 	pattern = re.compile(r''+SearchStr)
 	match = pattern.search(Text)
 	return match
 
+def SearchForPrice(Submission, PostBody, Item = "None"):
+	Currencies = ["\$", "\€", "\£"]
+	for Currency in Currencies:
+		if PriceCheck(PostBody, Currency, Item) is not None: return PriceCheck(PostBody, Currency, Item), Currency
+	return None, None
+
 def ParsePostBody(Submission, HaveObjects, WantObjects, Location, Keyboard):
 	logging.debug("PARSING POST BODY LOG:\n")
 	PostBody = Submission.selftext.upper()
+	
 	ObjectDict = {}
 	if len(HaveObjects.split(",")) == 1:
+		logging.debug("Only has one item for sale so finding the price ...")
 		# Only one object so need to find the price
 		ListInfo = []
-		logging.debug("Searching for:\t\t" + HaveObjects)
-		match = PriceCheck(PostBody, "\$")
-		if match:
-			# Currently takes the first
-			AskingPrice = match.group(2)
-			logging.debug("Found asking price:\t" + str(AskingPrice))
-			ListInfo.append(AskingPrice)
+		logging.debug("Searching for: " + HaveObjects)
+		logging.debug("In text:\n"+PostBody)
+		Match,Currency = SearchForPrice(Submission, PostBody)
+		if Match is not None:
+			Price = CurrencyConversion(Submission, Match,Currency)
+			SellOutcome = CheckIfSold(Submission, PostBody)
+			logging.debug("Info found ... Price: "+str(Price)+" Currency: "+Currency+" Sell outcome: "+str(SellOutcome))
 		else:
-			if PriceCheck(PostBody,"\€"):
-				match = PriceCheck(PostBody,"\€")
-				AskingPrice = match.group(2)
-				logging.debug("Found asking price:\t" + str(AskingPrice))
-				ListInfo.append(AskingPrice)
-			if PriceCheck(PostBody,"\£"):
-				match = PriceCheck(PostBody,"\£")
-				AskingPrice = match.group(2)
-				logging.debug("Found asking price:\t" + str(AskingPrice))
-				ListInfo.append(AskingPrice)
-			else:
-				logging.warning("Couldnt find asking price so filling it with the number 1.")
-				ListInfo.append(1)
-		# Determine the Sold Price
-		if Submission.link_flair_text:
-			if "Sold" in Submission.link_flair_text:
-				logging.debug("Submission was sold, assuming it was asking price")
-				Sold = True
-				ListInfo.append(Sold)
-			else:
-				# Search for Sold in body
-				logging.debug("Flair has not been updated, checking in the body")
-				Sold = search("SOLD",PostBody)
-				if Sold is None:
-					logging.debug("Not been confirmed in body either, checking comments")
-					Sold = False
-					ListInfo.append(Sold)
-				else:
-					Sold = True
-					ListInfo.append(Sold)
-		else:
-			Sold = False
-			ListInfo.append(Sold)
+			Price = None
+			SellOutcome = False
+			logging.debug("Not found price so putting in nans ... ")
+		
+		ListInfo.append(Price)
+		ListInfo.append(SellOutcome)
 		ObjectDict.update({Keyboard:ListInfo})
 		return ObjectDict
 	else:
 		# For posts with multiple items for sale
+		logging.debug("Has multiple items for sale so looping over them ...")
 		for Object in HaveObjects.split(","):
 			Object = Object.strip()
 			ListInfo = []
 			logging.info("Searching for:\t\t" + Object)
-			if PriceCheck(PostBody, "\$", Object):
-				match = PriceCheck(PostBody, "\$", Object)
-				AskingPrice = match.group(1)
-				ListInfo.append(AskingPrice)
-				logging.info("Found asking price:\t" + str(AskingPrice))
-				# FullString = match.group(0)
-				# Now need to check if it sold for that
-				if PriceCheck(PostBody, "\$", Object, True):
-					Sold = True
-					ListInfo.append(Sold)
-				else:
-					logging.info("Couldn't confirm " + Object + " was sold.")
-					Sold = False
-					ListInfo.append(Sold)
-				ObjectDict.update({Object:ListInfo})
+			Match,Currency = SearchForPrice(Submission, PostBody, Object)
+			if Match is not None:
+				Price = CurrencyConversion(Submission, Match,Currency)
+				SellOutcome = CheckIfSold(Submission, PostBody)
+				logging.debug("Info found ... Price: "+str(Price)+" Currency: "+Currency+" Sell outcome: "+str(SellOutcome))
 			else:
-				if Keyboard in Object:
-					if PriceCheck(PostBody, "\$", Keyboard):
-						match = PriceCheck(PostBody, "\$", Keyboard)
-						AskingPrice = match.group(1)
-						ListInfo.append(AskingPrice)
-						logging.info("Found asking price:\t" + str(AskingPrice))
-						if PriceCheck(PostBody, "\$", Object, True):
-							Sold = True
-							ListInfo.append(Sold)
-						else:
-							logging.info("Couldn't confirm " + Object + " was sold.")
-							Sold = False
-							ListInfo.append(Sold)
-						ObjectDict.update({Keyboard:ListInfo})
-				else:
-					logging.info("Couldn't find asking price")
-					# Need to declare values here
+				Price = None
+				SellOutcome = False
+				logging.debug("Not found price so putting in nans ... ")
+			ListInfo.append(Price)
+			ListInfo.append(SellOutcome)
+			ObjectDict.update({Object:ListInfo})
 		return ObjectDict
 
 def get_args():
