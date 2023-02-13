@@ -2,8 +2,6 @@
 # Original Author: Jack Hall
 # Made Public: 26th June 2020
 # 
-# To do (in order of priority):
-# 1) Test machine learning methods on it
 
 import praw, argparse, re, sys, datetime, os, logging, json, csv
 from parse import *
@@ -16,31 +14,23 @@ import seaborn as sns
 logging.basicConfig(level=logging.INFO)
 
 def main():
+	# Preparatory
 	args = get_args()
 	if args.Debug: logging.getLogger().setLevel(logging.DEBUG)
+	KeebList = GetListOfKeebs(args)
 
+	# Dataset generation
 	if not args.InputData:
 		subreddit = GetSubreddit()
-		KeebList = GetListOfKeebs(args)
 		DataDF = GetData(args, subreddit, KeebList)
 	else: DataDF = GetExistingData(args.InputData)
 	DF = PrepDF(DataDF)
+
+	# Analysis and output
 	for Keeb in KeebList:
 		if args.PlotData: MakePlots(args, DF, Keeb)
 		if args.SaveData: SaveData(args, DF, Keeb)
 	logging.info("All finished.")
-
-def GetExistingData(InputData):
-	return pd.read_csv(InputData)
-	# with open(InputData) as csv_file:
-	#         try:
-	#                 dialect = csv.Sniffer().sniff(csv_file.read(1024))
-	#         except csv.Error as err:
-	#                 #Log that this file format couldnt be deduced
-	#                 logging.debug("The format of "+InputData+" could not be detected.")
-	#         else:
-	#                 csv_file.seek(0)
-	#                 return csv.reader(csv_file, dialect=dialect)
 
 def MakePlots(Args, DataFrame, Keeb):
 	logging.info(80*"-")
@@ -484,6 +474,9 @@ def ParsePostBody(Submission, HaveObjects, WantObjects, Location, Keyboard):
 			ListInfo.append(SellOutcome)
 			ObjectDict.update({Object:ListInfo})
 		return ObjectDict
+
+def GetExistingData(InputData):
+	return pd.read_csv(InputData)
 
 def get_args():
 	args = argparse.ArgumentParser()
