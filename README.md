@@ -1,9 +1,9 @@
-# KeyboardMarket
+# Keyboard Market Analyser for subreddit: r/mechmarket
 
 ## Purpose
 A piece of code that allows one to analyse the secondary keyboard market via the subreddit: r/mechmarket.
 
-You might want information on the prices of a keycap set you're looking to buy and/or sell and want to know if it's expensive or cheap.
+You might want information on the prices of a keycap set you're looking to buy and/or sell and want to know if it's expensive/cheap, will it sell at a given price?
 
 You might want to gather a load of information on some high-end keyboards and perform you're own data analysis for investments.
 
@@ -15,9 +15,9 @@ To run this project:
 ```
 $ cd <Some directory you'd like to work from>
 $ git clone https://github.com/jackhall14/KeyboardMarket.git
-$ You'll need loads of dependencies so get downloading via pip or use a virtual environment like anaconda and get downloading using pip
-$ I have already put some of them in requirements.sh
-$ L250ish, You need to put in some details for the reddit praw api. Best reference for this, is this youtube video: https://www.youtube.com/watch?v=NRgfgtzIhBQ
+$ You'll need loads of dependencies so get download each one via pip or use a virtual environment like anaconda and get downloading using pip. Most are included in the bash file `source requirements.sh`
+$ For the reddit scraper to work, it'll need some reddit account details so put them into `login.json`. Best reference for how to get this is this youtube video: https://www.youtube.com/watch?v=NRgfgtzIhBQ
+$ Now you can do:
 $ python KeyboardMarketAnalyser.py
 ```
 
@@ -114,4 +114,4 @@ Finished.
 
 ## Technical Info of the Code
 
-So this a wrapper of the reddit praw api. It searches for [H]<Some item> [W] Paypal, and filters only the responses that are looking for payments over trades. I then take parse information from the title and the post body using regular expressions. For a post with multiple sales, we store all the sale items as we can remove them later if we don't need them. Note, for the plots, I write the price label in USD, which it most likely is but this is inaccurate and could be in euros or any other currency for that matter.
+So this a wrapper of the reddit praw api. It searches for [H]<Some item> [W] Paypal, and filters only the responses that are looking for payments over trades. I then take parse information from the title and the post body using regular expressions. For a post with multiple sales, we store all the sale items as we can remove them later if we don't need them. Note, for the plots, I write the price label in USD, which it most is but I have included a currency converter for any price adjustments from EUR and GBP too.
