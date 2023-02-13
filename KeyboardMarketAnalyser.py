@@ -3,7 +3,7 @@
 # Made Public: 26th June 2020
 # 
 # To do (in order of priority):
-# 1) Improve options for fitting - extract information from asking price histogram
+# 1) Test machine learning methods on it
 
 import praw, argparse, re, sys, datetime, os, logging, json
 from parse import *
@@ -16,17 +16,17 @@ import seaborn as sns
 logging.basicConfig(level=logging.INFO)
 
 def main():
-    args = get_args()
-    if args.Debug: logging.getLogger().setLevel(logging.DEBUG)
+	args = get_args()
+	if args.Debug: logging.getLogger().setLevel(logging.DEBUG)
 
-    subreddit = GetSubreddit()
-    KeebList = GetListOfKeebs(args)
-    DataDict = GetData(args, subreddit, KeebList)
-    DF = CreateDF(DataDict)
-    for Keeb in KeebList:
-	    if args.PlotData: MakePlots(args, DF, Keeb)
-	    if args.SaveData: SaveData(args, DF, Keeb)
-    logging.info("All finished.")
+	subreddit = GetSubreddit()
+	KeebList = GetListOfKeebs(args)
+	DataDict = GetData(args, subreddit, KeebList)
+	DF = CreateDF(DataDict)
+	for Keeb in KeebList:
+		if args.PlotData: MakePlots(args, DF, Keeb)
+		if args.SaveData: SaveData(args, DF, Keeb)
+	logging.info("All finished.")
 
 def MakePlots(Args, DataFrame, Keeb):
 	logging.info(80*"-")
@@ -94,7 +94,6 @@ def AskingPriceHist(DF, Keeb, OutputDir):
 	# x axis scale
 	ax.set_xlim([0, DF["Asking Price"].max() * 1.05])
 	plt.xlabel("Asking price (\$)",fontsize=14)
-
 	plt.show()
 
 	OutputPlotName = Keeb + "_asking_price_dist" + ".png"
@@ -406,8 +405,10 @@ def CurrencyConversion(Submission, Match, Currency):
 	Price = Match.group(1)
 	AskingPrice = re.sub(Currency, '', Price)
 	AskingPrice = float(AskingPrice)
-	if Currency == "\€": AskingPrice = c.convert(AskingPrice, 'EUR', 'USD',date=GetDate(Submission))
-	elif Currency == "\£": AskingPrice = c.convert(AskingPrice, 'GBP', 'USD',date=GetDate(Submission))
+	# if Currency == "\€": AskingPrice = c.convert(AskingPrice, 'EUR', 'USD',date=GetDate(Submission))
+	# elif Currency == "\£": AskingPrice = c.convert(AskingPrice, 'GBP', 'USD',date=GetDate(Submission))
+	if Currency == "\€": AskingPrice = c.convert(AskingPrice, 'EUR', 'USD')
+	elif Currency == "\£": AskingPrice = c.convert(AskingPrice, 'GBP', 'USD')
 	return AskingPrice
 
 def PriceCheck(Text, Currency, Keyboard = "None", SoldCheck = False):
