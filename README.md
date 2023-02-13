@@ -110,7 +110,8 @@ Finished.
 ### Additional Argument Options
 1. `--DebugKeeb` Which as the code searchs through and finds a good match, you can check it, use it for diagnostics plus other benefits you can think of
 2. `--DataLimit` Which limits the number of searchs, so set it to 10 for example if you're debugging a problem as the reddit praw has a search data limit request
-2. `--Debug` Changes the logging output from info to debug for more information
+3. `--Debug` Changes the logging output from info to debug for more information
+4. `--InputData` Allows you to use an existing csv dataset you've outputted from `--SaveData` such that you can do more analysis without the need for the additional rerunning of the dataset generation.
 
 ## Technical Info of the Code
 

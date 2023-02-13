@@ -5,7 +5,7 @@
 # To do (in order of priority):
 # 1) Test machine learning methods on it
 
-import praw, argparse, re, sys, datetime, os, logging, json
+import praw, argparse, re, sys, datetime, os, logging, json, csv
 from parse import *
 import pandas as pd
 import matplotlib
@@ -19,14 +19,28 @@ def main():
 	args = get_args()
 	if args.Debug: logging.getLogger().setLevel(logging.DEBUG)
 
-	subreddit = GetSubreddit()
-	KeebList = GetListOfKeebs(args)
-	DataDict = GetData(args, subreddit, KeebList)
-	DF = CreateDF(DataDict)
+	if not args.InputData:
+		subreddit = GetSubreddit()
+		KeebList = GetListOfKeebs(args)
+		DataDF = GetData(args, subreddit, KeebList)
+	else: DataDF = GetExistingData(args.InputData)
+	DF = PrepDF(DataDF)
 	for Keeb in KeebList:
 		if args.PlotData: MakePlots(args, DF, Keeb)
 		if args.SaveData: SaveData(args, DF, Keeb)
 	logging.info("All finished.")
+
+def GetExistingData(InputData):
+	return pd.read_csv(InputData)
+	# with open(InputData) as csv_file:
+	#         try:
+	#                 dialect = csv.Sniffer().sniff(csv_file.read(1024))
+	#         except csv.Error as err:
+	#                 #Log that this file format couldnt be deduced
+	#                 logging.debug("The format of "+InputData+" could not be detected.")
+	#         else:
+	#                 csv_file.seek(0)
+	#                 return csv.reader(csv_file, dialect=dialect)
 
 def MakePlots(Args, DataFrame, Keeb):
 	logging.info(80*"-")
@@ -204,11 +218,10 @@ def GetData(Args, subreddit, List_of_Keebs):
 								'Sold': value[1]
 							}
 						)
-	return List_Of_Output_Dicts
+	return pd.DataFrame(List_Of_Output_Dicts)
 
-def CreateDF(Dict):
+def PrepDF(DataFrame):
 	# Create a dataframe from the output dictionary
-	DataFrame = pd.DataFrame(Dict)
 	DataFrame = DataFrame.sort_values(by='Post Date',ascending=True)
 	DataFrame['Post Date'] = pd.to_datetime(DataFrame['Post Date'], format="%Y/%m/%d")
 	DataFrame = DataFrame.convert_dtypes()
@@ -476,6 +489,7 @@ def get_args():
 	args = argparse.ArgumentParser()
 	args.add_argument('--Keeb', type=str, nargs='+', default=["polaris"], help='Name of keebs you would like to search for - seperate by space e.g: --Keeb polaris aella.')
 	args.add_argument('--SaveData', action='store_true', help='When youre happy to export your dataframe, turn this on')
+	args.add_argument('--InputData', type=str, default=None, help='Use an existing dataset youve generated.')
 	args.add_argument('--PlotData', action='store_true', help='Get a sales version of the final DF, for single keebs only.')
 	args.add_argument('--DebugKeeb', action='store_true', help='When gathering data, pause after each keeb to check the log.')
 	args.add_argument('--DataLimit', type=int, default=40000, help='Restrict the number of listings it will perform per keyboard.')
