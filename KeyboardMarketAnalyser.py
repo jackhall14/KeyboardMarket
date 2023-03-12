@@ -7,6 +7,7 @@ import praw, argparse, re, sys, datetime, os, logging, json, csv
 from parse import *
 import pandas as pd
 import matplotlib
+import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import dates as mpl_dates
 from currency_converter import CurrencyConverter
@@ -30,7 +31,119 @@ def main():
 	for Keeb in KeebList:
 		if args.PlotData: MakePlots(args, DF, Keeb)
 		if args.SaveData: SaveData(args, DF, Keeb)
+		if args.DatePredict: DatePredict(args, DF, Keeb)
 	logging.info("All finished.")
+
+def DatePredict(Args, DF, Keeb):
+	logging.info(80*"-")
+	logging.info("Time to predict cost in the future ...")
+
+	# Create output dir
+	cwd = os.getcwd() + "/"
+	OutputDir = cwd + "Plots/"+Keeb+"/"
+	if not os.path.exists(OutputDir): os.makedirs(OutputDir)
+
+	# Select only one keeb from the big DF
+	DF = DF.loc[DF['Sale Item'] == Keeb.upper()]
+	DF = DF.dropna()
+	DF['Post Date'] = DF['Post Date'].map(datetime.datetime.toordinal)
+
+	# Begin Plot:
+	x_var_name = "Post Date"
+	y_var_name = "Asking Price"
+	x_var = DF[x_var_name]
+	y_var = DF[y_var_name]
+
+	# Axis and Title labels:
+	# KeebName = Keeb.upper()
+	# figureTitle = KeebName
+	figureTitle = Keeb
+	figurexlabel = x_var_name
+	figureylabel = y_var_name + " (\$)"
+	Prop_array = [figureTitle, figurexlabel, figureylabel]
+
+	# Reshaping
+	x_var = x_var.to_numpy()
+	x_var = x_var.reshape(-1, 1)
+	y_var = y_var.to_numpy()
+	y_var = y_var.reshape(-1, 1)
+
+	# Linear regression
+	from sklearn.model_selection import train_test_split
+	from sklearn.linear_model import LinearRegression
+	from sklearn.metrics import mean_absolute_error,mean_squared_error
+	X_train, X_test, y_train, y_test = train_test_split(x_var, y_var, test_size = 0.1)
+
+	# Fit linear regression
+	regr = LinearRegression(fit_intercept=True,copy_X=True)
+	regr.fit(X_train, y_train)
+	
+	# Print the info:
+	print('intercept:', regr.intercept_)
+	print('slope:', regr.coef_) 
+	print("Score:",regr.score(X_test, y_test))
+
+	y_pred = regr.predict(X_test)
+
+	# Extend the line
+	XMin = x_var.min(axis=0)[0]
+	XMax = x_var.max(axis=0)[0]
+	x_extra = np.linspace(XMin,XMax,100,dtype=np.int_)
+	x_extra = x_extra.reshape(-1, 1)
+	y_extra = regr.predict(x_extra)
+
+	# Evaluate fit
+	mae = mean_absolute_error(y_true=y_test,y_pred=y_pred)
+	rmse = mean_squared_error(y_true=y_test,y_pred=y_pred,squared=False)
+	print("MAE:",mae)
+	print("RMSE:",rmse)
+
+	# Transform back to datetime
+	X_train = X_train.reshape(-1)
+	X_train = pd.Series(X_train)
+	X_train = X_train.map(datetime.datetime.fromordinal)
+	y_train = y_train.reshape(-1)
+	x_extra = x_extra.reshape(-1)
+	x_extra = pd.Series(x_extra)
+	x_extra = x_extra.map(datetime.datetime.fromordinal)
+	y_extra = y_extra.reshape(-1)
+	X_test = X_test.reshape(-1)
+	X_test = pd.Series(X_test)
+	X_test = X_test.map(datetime.datetime.fromordinal)
+	y_pred = y_pred.reshape(-1)
+
+	# Plot setup
+	plt.rcParams["figure.figsize"] = (12,6)
+	plt.style.use("ggplot")
+
+	# Plotting
+	plt.scatter(X_train, y_train, color ='g')
+	plt.scatter(X_test, y_test, color ='b')
+	plt.plot(x_extra, y_extra, color ='r',linestyle='dashed')
+	plt.plot(X_test, y_pred, color ='r')
+
+	# Plot adjustments
+	plt.xlabel(Prop_array[1],fontsize=14)
+	plt.ylabel(Prop_array[2],fontsize=14)
+	plt.ylim((0,y_train.max() * 1.05))
+
+	plt.legend(["Training sample", "Testing sample", "Extrapolated range", "Evaluated range"], loc ="lower left")
+	plt.show()
+
+	OutputPlotName = Keeb + "_timeseries_fit" + ".png"
+	plt.savefig(OutputDir+OutputPlotName)
+	logging.info("Saved to:\t" +OutputDir+OutputPlotName)
+
+	# Prediction
+	Input=input("What date do you want to test? (in DD/MM/YYYY) ")
+	TestDate=datetime.datetime.strptime(Input,"%d/%m/%Y").date()
+
+	print("Inputted test value:",TestDate)
+	TestDate = TestDate.toordinal()
+	# print("Transformed:",test_value,type(test_value))
+	Array = np.array([TestDate])
+	Array = Array.reshape(-1,1)
+	print("Predicted asking price ($):",regr.predict(Array))
 
 def MakePlots(Args, DataFrame, Keeb):
 	logging.info(80*"-")
@@ -55,6 +168,7 @@ def MakePlots(Args, DataFrame, Keeb):
 	CorrelationPlot(DataFrame, Keeb, OutputDir)
 	DatePlot(DataFrame, Keeb, OutputDir)
 	# ItemPlotMPL(DataFrame, List_of_Keebs, OutputDir)
+	return DataFrame
 
 def SoldHist(DF, Keeb, OutputDir):
 	# Prep DF for plot:
@@ -106,6 +220,8 @@ def AskingPriceHist(DF, Keeb, OutputDir):
 
 def DatePlot(DF, Keeb, OutputDir):
 	logging.info("Making plot of asking price vs date posted for keeb:\t"+Keeb)
+
+	DF = DF.dropna()
 
 	# Begin Plot:
 	x_var_name = "Post Date"
@@ -484,6 +600,7 @@ def get_args():
 	args.add_argument('--SaveData', action='store_true', help='When youre happy to export your dataframe, turn this on')
 	args.add_argument('--InputData', type=str, default=None, help='Use an existing dataset youve generated.')
 	args.add_argument('--PlotData', action='store_true', help='Get a sales version of the final DF, for single keebs only.')
+	args.add_argument('--DatePredict', action='store_true', help='Use timeseries plot to predict price in the future')
 	args.add_argument('--DebugKeeb', action='store_true', help='When gathering data, pause after each keeb to check the log.')
 	args.add_argument('--DataLimit', type=int, default=40000, help='Restrict the number of listings it will perform per keyboard.')
 	args.add_argument('--Debug', action='store_true', help="Changes the log level to debug")

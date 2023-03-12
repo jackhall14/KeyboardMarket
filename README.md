@@ -107,6 +107,23 @@ Outputed file to:
 Finished.
 ```
 
+3. `--DatePredict` Is an extension of the time series plot where linear regression is performed to the distribution such that the price can be forecast in the future. To do this with an existing csv dataset you would run:
+```bash
+python KeyboardMarketAnalyser.py --InputData csv_data/polaris.csv --DatePredict
+```
+You will then be prompted with an input question:
+```bash
+What date do you want to test? (in DD/MM/YYYY)
+```
+For example, I might type: 12/03/2023
+With the result as:
+```bash
+Inputted test value: 2023-03-12
+Predicted asking price ($): [[364.06264994]]
+```
+The fit can be debugged with the plot:
+![Image of linear regression fit to time series distribution](https://github.com/jackhall14/KeyboardMarket/blob/master/Plots/polaris/polaris_timeseries_fit.png)
+
 ### Additional Argument Options
 1. `--DebugKeeb` Which as the code searchs through and finds a good match, you can check it, use it for diagnostics plus other benefits you can think of
 2. `--DataLimit` Which limits the number of searchs, so set it to 10 for example if you're debugging a problem as the reddit praw has a search data limit request
