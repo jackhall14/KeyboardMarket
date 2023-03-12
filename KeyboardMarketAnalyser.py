@@ -128,7 +128,7 @@ def DatePredict(Args, DF, Keeb):
 	plt.ylim((0,y_train.max() * 1.05))
 
 	plt.legend(["Training sample", "Testing sample", "Extrapolated range", "Evaluated range"], loc ="lower left")
-	plt.show()
+	# plt.show()
 
 	OutputPlotName = Keeb + "_timeseries_fit" + ".png"
 	plt.savefig(OutputDir+OutputPlotName)
